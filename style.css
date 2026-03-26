@@ -1,0 +1,174 @@
+/* ===== Reset box-sizing ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* ===== Page body (default for game screen) ===== */
+body {
+  margin: 0;
+  padding: 0; /* remove vertical padding so child backgrounds fill screen */
+  font-family: Arial, sans-serif;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  /* default background is for game screen */
+  background: url("assets/images/cyberpunk.png") center/cover no-repeat fixed;
+  min-height: 100vh;
+}
+
+/* ===== Screens (home & instructions) ===== */
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100vh;
+
+  /* override parent's game background */
+  background: url("assets/images/bkgdGame.png") center/cover no-repeat fixed;
+}
+
+/* ===== Top menu bar ===== */
+#topBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 80px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 clamp(20px, 5vw, 67px);
+
+  background: linear-gradient(
+    to bottom,
+    rgba(64, 52, 61, 0.56),
+    rgba(72, 3, 52, 0.55)
+  );
+
+  z-index: 1;
+}
+
+/* Game message */
+#message {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  font-family: 'Comfortaa', sans-serif;
+  font-size: 20px;
+  text-align: center;
+  max-width: 600px;
+  pointer-events: none;
+}
+
+/* BACK & PAUSE buttons */
+#backButton,
+#pauseButton {
+  font-family: 'Micro 5', sans-serif;
+  font-size: 40px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+#pauseButton:hover {
+  opacity: 0.8;
+}
+
+/* ===== Home screen logo ===== */
+#homeLogo {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto 10px auto;
+}
+
+/* Instructions title */
+.instructionsTitle {
+  font-family: 'Jersey 25', sans-serif;
+  font-size: 60px;
+  text-align: center;
+  margin-bottom: 40px;
+  text-shadow: 0px 7px rgba(0, 0, 0, 0.6);
+}
+
+/* Instructions text */
+.instructionsText {
+  font-family: 'Comfortaa', sans-serif;
+  width: 400px;
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+/* Home & instructions buttons */
+#homeScreen button,
+#instructionsScreen button {
+  margin: 10px;
+  padding: 14px 28px;
+  font-size: 22px;
+}
+
+/* ===== Game container and canvas ===== */
+#gameContainer {
+  position: relative;
+}
+
+canvas {
+  border: 2px solid white;
+  transform: perspective(900px) rotateX(15deg);
+  transform-origin: center;
+  box-shadow: 0 40px 60px rgba(0,0,0,0.6);
+  display: block;
+  margin: 0 auto;
+  z-index: 1;
+}
+
+/* Side images */
+#leftImg, #rightImg {
+  position: absolute;
+  top: 530px;
+  width: 300px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+#leftImg { right: 530px; }
+#rightImg { left: 500px; }
+
+/* Hit feedback text */
+#hitFeedback {
+  margin-top: -20px;
+  font-family: "Micro 5", sans-serif;
+  font-size: 67px;
+  height: 24px;
+  color: white;
+  text-align: center;
+  z-index: 3;
+  position: relative;
+}
+
+/* Retry button */
+button {
+  margin-top: 50px;
+  padding: 10px 20px;
+  font-family: 'Comfortaa', sans-serif;
+  font-size: 16px;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  z-index: 2;
+  background: linear-gradient(
+    to bottom,
+    rgba(64, 52, 61, 0.56),
+    rgba(72, 3, 52, 0.55)
+  );
+}

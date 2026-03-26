@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NekoBeat</title>
+
+    <link rel="stylesheet" href="style.css" />
+    <script src="libraries/p5.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Micro+5&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Jersey+25&display=swap" rel="stylesheet">
+  </head>
+
+  <body>
+<audio id="bgMusic" src="assets/audio/chill.mp3" preload="auto"></audio>
+
+    <!-- HOME SCREEN -->
+    <div id="homeScreen" class="screen">
+      <div class="title">
+        <img src="assets/images/logo.png" alt="NekoBeat Logo" id="homeLogo">
+      </div>
+      <button id="homePlayButton">PLAY</button>
+      <button id="instructionsButton">INSTRUCTIONS</button>
+    </div>
+
+    <!-- INSTRUCTIONS SCREEN -->
+    <div id="instructionsScreen" class="screen" style="display:none;">
+      <h1 class="instructionsTitle">INSTRUCTIONS</h1>
+
+      <p class="instructionsText">
+        Hit the keys <b>F</b> and <b>J</b> when the notes reach the hit bar.
+        Try to time your presses perfectly to clear each level!
+      </p>
+
+      <button id="instructionsPlayButton">PLAY</button>
+      <button id="instructionsBackButton">BACK</button>
+    </div>
+
+
+    <!-- GAME SCREEN -->
+    <div id="gameScreen" class="screen" style="display:none;">
+
+    <!-- Top Menu Bar -->
+    <div id="topBar">
+      <div id="backButton">&lt; BACK</div>
+      <div id="pauseButton">II PAUSE</div>
+      <h1 id="message">Hit F or J as rectangles reach the bar</h1>
+    </div>
+
+    <!-- Container for canvas and side images -->
+    <div id="gameContainer">
+      <img src="assets/images/kitty.png" id="leftImg" />
+      <img src="assets/images/bunny.png" id="rightImg" />
+    </div>
+
+    <!-- Hit feedback below the canvas -->
+    <div id="hitFeedback"></div>
+
+    <!-- Retry button -->
+    <button id="retryButton" style="display: none">Try Again</button>
+  
+  </div>
+
+    <script src="levels.js"></script>
+    <script src="sketch.js"></script>
+  
+  </body>
+</html>

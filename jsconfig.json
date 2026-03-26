@@ -1,0 +1,21 @@
+{
+  // ----- Compiler options for VS Code -----
+  "compilerOptions": {
+    "target": "es6",      // Use ES6 syntax
+    "checkJs": false,     // Don't type-check JS
+    "allowJs": true       // Allow JS files in project
+  },
+
+  // ----- Files to include -----
+  "include": [
+    "*.js",               // All JS files in root
+    "**/*.js",            // All JS files in subfolders
+    "./types/p5/index.d.ts", 
+    "./types/p5/global.d.ts"
+  ],
+
+  // ----- Files/folders to ignore -----
+  "exclude": [
+    "node_modules"
+  ]
+}
