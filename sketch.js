@@ -1,5 +1,4 @@
 let rectangles = [];
-let barY;
 
 const rectWidth = 100;
 const rectHeight = 30;
@@ -21,13 +20,29 @@ let bgMusic;
 const synthLow = new Audio("assets/audio/beep.wav");
 const synthHigh = new Audio("assets/audio/synthHigh.wav");
 
+/* ---------- Hit bar ---------- */
+const barBaseY = 550;          // set properly in setup() once height is known
+let barBaseYValue;             // mutable, set in setup
+const barOscillateStart = 30;  // seconds into song before bar starts bobbing
+const barAmplitude = 25;       // pixels up/down
+const barPeriod = 1.5;         // seconds per full bob cycle
+
+// Returns the bar's Y position at any given song time.
+// Before 30s it's fixed; after 30s it bobs sinusoidally.
+// Both note positioning and hit detection call this so they're always in sync.
+function getBarY(songTime) {
+  if (songTime < barOscillateStart) return barBaseYValue;
+  const t = songTime - barOscillateStart;
+  return barBaseYValue + barAmplitude * sin(TWO_PI * t / barPeriod);
+}
+
 /* ---------- Beat / timing constants ---------- */
 const BPM = 160;
 const beatInterval = 60 / BPM;       // seconds per beat (~0.375s)
+const beatOffset = 8;                 // beats of lead-in before first note hits the bar
 const leadin = 6;                     // how many beats before the hit bar a note spawns
 const travelTime = leadin * beatInterval; // seconds a note takes to cross the screen
 let pixelsPerSecond;                  // calculated in setup() once barY is known
-const beatOffset = 8; // beats of delay at the start
 
 /* ---------- Beatmap ---------- */
 // Each entry: { beat: <beat number>, key: "F" or "J" }
@@ -87,11 +102,11 @@ function showScreen(screen) {
 /* ---------- GAME SETUP ---------- */
 function setup() {
   createCanvas(600, 600).parent("gameContainer");
-  barY = height - 50;
+  barBaseYValue = height - 50;
 
-  // Calculate how many pixels per second a note travels
-  // Notes travel from y = -rectHeight to y = barY in travelTime seconds
-  pixelsPerSecond = (barY + rectHeight) / travelTime;
+  // pixelsPerSecond uses barBaseYValue (the resting position).
+  // Notes always travel the same distance — the bar bobs around that baseline.
+  pixelsPerSecond = (barBaseYValue + rectHeight) / travelTime;
 
   bgMusic = document.getElementById("bgMusic");
   bgMusic.loop = true;
@@ -161,7 +176,7 @@ function spawnScheduledNotes() {
     if (entry.level !== level) continue;
     if (spawnedBeats.has(i)) continue;
 
-    const targetTime = (entry.beat + beatOffset) * beatInterval; // when note should hit barY (seconds)
+    const targetTime = (entry.beat + beatOffset) * beatInterval; // when note should hit the bar (seconds)
     const spawnTime = targetTime - travelTime;    // when note should appear (seconds)
 
     if (songTime >= spawnTime) {
@@ -221,10 +236,11 @@ function draw() {
   laneGlow.J = max(0, laneGlow.J - 5);
 
   // ---- Hit bar ----
+  const currentBarY = getBarY(bgMusic.currentTime);
   drawingContext.shadowBlur = 25;
   drawingContext.shadowColor = color(255);
   fill(255, 200);
-  rect(0, barY, width, barHeight);
+  rect(0, currentBarY, width, barHeight);
   drawingContext.shadowBlur = 0;
 
   // ---- Update and draw rectangles ----
@@ -233,10 +249,10 @@ function draw() {
 
     rectangles.forEach(r => {
       if (!r.hit) {
-        // KEY CHANGE: position is calculated from song time, not accumulated speed
-        // timeUntilHit > 0 means note hasn't reached bar yet
+        // Position note based on song time and where the bar currently is.
+        // getBarY(songTime) ensures the note tracks the bar's bobbing position.
         const timeUntilHit = r.targetTime - songTime;
-        r.y = barY - timeUntilHit * pixelsPerSecond;
+        r.y = getBarY(songTime) - timeUntilHit * pixelsPerSecond;
 
         drawingContext.shadowBlur = 25;
         drawingContext.shadowColor = r.key === "F" ? color(0, 255, 255) : color(255, 0, 255);
@@ -245,7 +261,7 @@ function draw() {
         drawingContext.shadowBlur = 0;
 
         // Miss: note passed the bar without being hit
-        if (r.y > barY + barHeight + 10) {
+        if (r.y > getBarY(songTime) + barHeight + 10) {
           gameOver = true;
           document.getElementById("message").innerText = "Game Over! You missed a note.";
           document.getElementById("retryButton").style.display = "block";
@@ -314,10 +330,11 @@ function keyPressed() {
   synthLow.play().catch(err => console.log("Sound blocked:", err));
 
   const songTime = bgMusic.currentTime;
+  const currentBarY = getBarY(songTime);
 
   rectangles.forEach(r => {
     if (!r.hit && r.key === pressedKey) {
-      if (r.y + rectHeight >= barY - hitBuffer && r.y <= barY + barHeight + hitBuffer) {
+      if (r.y + rectHeight >= currentBarY - hitBuffer && r.y <= currentBarY + barHeight + hitBuffer) {
         r.hit = true;
 
         // Timing accuracy based on how close to the beat the player was
