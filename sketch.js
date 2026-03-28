@@ -20,6 +20,9 @@ let bgMusic;
 const synthLow = new Audio("assets/audio/beep.wav");
 const synthHigh = new Audio("assets/audio/synthHigh.wav");
 
+const levelCompleteScreen = document.getElementById("levelCompleteScreen");
+let levelCompleteTimer = null;
+
 /* ---------- Hit bar ---------- */
 const barBaseY = 550; // set properly in setup() once height is known
 let barBaseYValue; // mutable, set in setup
@@ -62,6 +65,7 @@ function showScreen(screen) {
   homeScreen.style.display = "none";
   instructionsScreen.style.display = "none";
   gameScreen.style.display = "none";
+  levelCompleteScreen.style.display = "none";
   screen.style.display = "flex";
 }
 
@@ -110,6 +114,55 @@ function setup() {
   document.getElementById("instructionsBackButton").onclick = () =>
     showScreen(homeScreen);
   document.getElementById("backButton").onclick = () => showScreen(homeScreen);
+
+  document.getElementById("nextLevelButton").onclick = () => {
+    if (levelCompleteTimer) {
+      clearTimeout(levelCompleteTimer);
+      levelCompleteTimer = null;
+    }
+    level++;
+    spawnedBeats = new Set();
+    rectangles = [];
+    particles = [];
+    gameOver = false;
+    paused = false;
+    const firstNote = beatmap.find(e => e.level === level);
+    bgMusic.currentTime = Math.max(0, (firstNote.beat + beatOffset) * beatInterval - travelTime);
+    document.getElementById("message").innerText =
+      "Hit F or J as rectangles reach the bar";
+    showScreen(gameScreen);
+    playBackgroundMusic();
+  };
+
+  document.getElementById("tryAgainButton").onclick = () => {
+    if (levelCompleteTimer) {
+      clearTimeout(levelCompleteTimer);
+      levelCompleteTimer = null;
+    }
+    spawnedBeats = new Set();
+    rectangles = [];
+    gameOver = false;
+    const firstNote = beatmap.find((e) => e.level === level);
+    bgMusic.currentTime = Math.max(
+      0,
+      (firstNote.beat + beatOffset) * beatInterval - travelTime,
+    );
+    document.getElementById("message").innerText =
+      "Hit F or J as rectangles reach the bar";
+    showScreen(gameScreen);
+    playBackgroundMusic();
+  };
+
+  document.getElementById("levelHomeButton").onclick = () => {
+    if (levelCompleteTimer) {
+      clearTimeout(levelCompleteTimer);
+      levelCompleteTimer = null;
+    }
+    bgMusic.pause();
+    bgMusic.currentTime = 0;
+    level = 1;
+    showScreen(homeScreen);
+  };
 }
 
 function playBackgroundMusic() {
@@ -127,6 +180,7 @@ function resetGame() {
   particles = [];
   laneGlow = { F: 0, J: 0 };
   spawnedBeats = new Set();
+  levelCompleteTimer = null;
 
   bgMusic.currentTime = 0;
 
@@ -259,15 +313,24 @@ function draw() {
       rectangles.filter((r) => !r.hit).length === 0 &&
       !gameOver
     ) {
-      if (level < maxLevels) {
-        level++;
-        document.getElementById("message").innerText =
-          `Level ${level - 1} Complete! Get ready for Level ${level}`;
-      } else {
-        gameOver = true;
-        document.getElementById("message").innerText =
-          "All Levels Complete! 🎉";
-        document.getElementById("retryButton").style.display = "block";
+      gameOver = true;
+      // Start the 4-beat breather timer if not already started
+      if (levelCompleteTimer === null) {
+        const fourBeats = 4 * beatInterval * 1000; // convert to milliseconds
+        levelCompleteTimer = setTimeout(() => {
+          bgMusic.pause();
+          const title = document.getElementById("levelCompleteTitle");
+          const nextBtn = document.getElementById("nextLevelButton");
+          if (level < maxLevels) {
+            title.innerText = "LEVEL COMPLETE!";
+            nextBtn.style.display = "block";
+          } else {
+            title.innerText = "YOU WIN! 🎉";
+            nextBtn.style.display = "none";
+          }
+          showScreen(levelCompleteScreen);
+          levelCompleteTimer = null;
+        }, fourBeats);
       }
     }
   }
