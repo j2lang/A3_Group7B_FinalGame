@@ -1,7 +1,9 @@
 let rectangles = [];
 
-const rectWidth = 100;
 const rectHeight = 30;
+
+// Each lane has its own width. Space is wider. All widths must sum to 600 (canvas width).
+const laneWidths = { "D": 100, "F": 100, " ": 200, "J": 100, "K": 100 };
 
 let level = 1;
 let gameOver = false;
@@ -45,22 +47,26 @@ const travelTime = leadin * beatInterval;
 let pixelsPerSecond;
 
 /* ---------- Lane layout ---------- */
-// 5 lanes dividing the canvas into 6 equal columns:
-// D=col1, F=col2, Space=col3, J=col4, K=col5
-const laneColumns = { "D": 0.5, "F": 1.5, " ": 2.5, "J": 3.5, "K": 4.5 };
+// Lane order left to right
+const laneOrder = ["D", "F", " ", "J", "K"];
 
-// Returns the left X of a lane's rectangle
+// Returns the left X edge of a lane based on cumulative widths
 function getLaneX(key) {
-  return (width / 6) * laneColumns[key] - rectWidth / 2;
+  let x = 0;
+  for (let lane of laneOrder) {
+    if (lane === key) return x;
+    x += laneWidths[lane];
+  }
 }
 
-// Note colour per lane
+// Note and glow colours per lane:
+// D/K = purple, F/J = blue, Space = yellow
 const laneColors = {
-  "D": [0, 255, 255],
-  "F": [0, 255, 255],
-  " ": [255, 255, 0],
-  "J": [255, 0, 255],
-  "K": [255, 0, 255],
+  "D": [255, 0, 255],    // original magenta/purple
+  "F": [0, 255, 255],    // original cyan
+  " ": [255, 220, 0],    // yellow
+  "J": [0, 255, 255],    // original cyan
+  "K": [255, 0, 255],    // original magenta/purple
 };
 
 /* ---------- Beatmap ---------- */
@@ -112,7 +118,11 @@ function setup() {
     else bgMusic.play().catch((err) => console.log("Music blocked:", err));
   };
 
-  document.getElementById("retryButton").addEventListener("click", resetGame);
+  document.getElementById("retryButton").addEventListener("click", () => {
+    const currentLevel = level;
+    resetGame();
+    level = currentLevel;
+  });
   document.getElementById("instructionsButton").onclick = () => showScreen(instructionsScreen);
   document.getElementById("instructionsBackButton").onclick = () => showScreen(homeScreen);
   document.getElementById("backButton").onclick = () => showScreen(homeScreen);
@@ -192,6 +202,7 @@ function spawnScheduledNotes() {
         key: entry.key,
         targetTime: targetTime,
         x: getLaneX(entry.key),
+        w: laneWidths[entry.key],
         y: -rectHeight,
         hit: false,
       });
@@ -213,11 +224,10 @@ function draw() {
   const topAlpha = 102;
   const bottomAlpha = 255;
   const steps = 60;
-  const lanes = ["D", "F", " ", "J", "K"];
-  const greyLanes = new Set(["F", "J"]); // F and J are grey; rest are black
 
-  for (let lane of lanes) {
+  for (let lane of laneOrder) {
     const lx = getLaneX(lane);
+    const lw = laneWidths[lane];
     const [r, g, b] = laneColors[lane];
 
     for (let i = 0; i < steps; i++) {
@@ -229,12 +239,13 @@ function draw() {
       strokeWeight(4);
       stroke(r, g, b, laneGlow[lane]);
       noFill();
-      rect(lx, yPos, rectWidth, h);
+      rect(lx, yPos, lw, h);
 
-      // Lane fill: grey for F/J, black for D/Space/K
+      // Grey gradient fills
       noStroke();
-      fill(greyLanes.has(lane) ? color(60, 60, 60, alphaValue) : color(0, 0, 0, alphaValue));
-      rect(lx, yPos, rectWidth, h);
+      const isDark = lane === "D" || lane === " " || lane === "K";
+      fill(isDark ? color(35, 35, 35, alphaValue) : color(60, 60, 60, alphaValue));
+      rect(lx, yPos, lw, h);
     }
 
     laneGlow[lane] = max(0, laneGlow[lane] - 5);
@@ -261,7 +272,7 @@ function draw() {
         drawingContext.shadowBlur = 25;
         drawingContext.shadowColor = color(rc, gc, bc);
         fill(rc, gc, bc);
-        rect(r.x, r.y, rectWidth, rectHeight, 12);
+        rect(r.x, r.y, r.w, rectHeight, 12);
         drawingContext.shadowBlur = 0;
 
         if (r.y > getBarY(songTime) + barHeight + 10) {
@@ -361,7 +372,7 @@ function keyPressed() {
         setTimeout(() => { hitFeedback.style.opacity = "0"; }, 250);
 
         const [rc, gc, bc] = laneColors[r.key];
-        createBurst(r.x, r.y, color(rc, gc, bc));
+        createBurst(r.x, r.y, r.w, color(rc, gc, bc));
       }
     }
   });
@@ -370,10 +381,10 @@ function keyPressed() {
   if (key === " ") return false;
 }
 
-function createBurst(x, y, noteColor) {
+function createBurst(x, y, w, noteColor) {
   for (let i = 0; i < 8; i++) {
     particles.push({
-      x: x + rectWidth / 2,
+      x: x + w / 2,
       y: y + rectHeight / 2,
       vx: random(-2, 2),
       vy: random(-2, -4),
