@@ -12,7 +12,7 @@ let particles = [];
 const hitBuffer = 20;
 const barHeight = 12 + hitBuffer;
 
-let laneGlow = { F: 0, J: 0 };
+let laneGlow = { D: 0, F: 0, " ": 0, J: 0, K: 0 };
 
 let paused = false;
 let bgMusic;
@@ -24,15 +24,12 @@ const levelCompleteScreen = document.getElementById("levelCompleteScreen");
 let levelCompleteTimer = null;
 
 /* ---------- Hit bar ---------- */
-const barBaseY = 550; // set properly in setup() once height is known
-let barBaseYValue; // mutable, set in setup
-const barOscillateStart = 30; // seconds into song before bar starts bobbing
-const barAmplitude = 25; // pixels up/down
-const barPeriod = 1.5; // seconds per full bob cycle
+const barBaseY = 550;
+let barBaseYValue;
+const barOscillateStart = 30;
+const barAmplitude = 25;
+const barPeriod = 1.5;
 
-// Returns the bar's Y position at any given song time.
-// Before 30s it's fixed; after 30s it bobs sinusoidally.
-// Both note positioning and hit detection call this so they're always in sync.
 function getBarY(songTime) {
   if (songTime < barOscillateStart) return barBaseYValue;
   const t = songTime - barOscillateStart;
@@ -41,16 +38,32 @@ function getBarY(songTime) {
 
 /* ---------- Beat / timing constants ---------- */
 const BPM = 160;
-const beatInterval = 60 / BPM; // seconds per beat (~0.375s)
-const beatOffset = 8; // beats of lead-in before first note hits the bar
-const leadin = 6; // how many beats before the hit bar a note spawns
-const travelTime = leadin * beatInterval; // seconds a note takes to cross the screen
-let pixelsPerSecond; // calculated in setup() once barY is known
+const beatInterval = 60 / BPM;
+const beatOffset = 8;
+const leadin = 6;
+const travelTime = leadin * beatInterval;
+let pixelsPerSecond;
+
+/* ---------- Lane layout ---------- */
+// 5 lanes dividing the canvas into 6 equal columns:
+// D=col1, F=col2, Space=col3, J=col4, K=col5
+const laneColumns = { "D": 0.5, "F": 1.5, " ": 2.5, "J": 3.5, "K": 4.5 };
+
+// Returns the left X of a lane's rectangle
+function getLaneX(key) {
+  return (width / 6) * laneColumns[key] - rectWidth / 2;
+}
+
+// Note colour per lane
+const laneColors = {
+  "D": [0, 255, 255],
+  "F": [0, 255, 255],
+  " ": [255, 255, 0],
+  "J": [255, 0, 255],
+  "K": [255, 0, 255],
+};
 
 /* ---------- Beatmap ---------- */
-// Each entry: { beat: <beat number>, key: "F" or "J" }
-// Beat 0 = the very first beat of the song.
-// Add/remove entries to design your level.
 const beatmap = generateBeatmap();
 
 /* ---------- Track which beatmap notes have been spawned ---------- */
@@ -73,53 +86,39 @@ function showScreen(screen) {
 function setup() {
   createCanvas(600, 600).parent("gameContainer");
   barBaseYValue = height - 50;
-
-  // pixelsPerSecond uses barBaseYValue (the resting position).
-  // Notes always travel the same distance — the bar bobs around that baseline.
   pixelsPerSecond = (barBaseYValue + rectHeight) / travelTime;
 
   bgMusic = document.getElementById("bgMusic");
   bgMusic.loop = true;
   bgMusic.volume = 0.5;
-
   synthLow.volume = 0.5;
 
-  // Home Play button
   document.getElementById("homePlayButton").onclick = () => {
     showScreen(gameScreen);
     resetGame();
     playBackgroundMusic();
   };
 
-  // Instructions Play button
   document.getElementById("instructionsPlayButton").onclick = () => {
     showScreen(gameScreen);
     resetGame();
     playBackgroundMusic();
   };
 
-  // Pause button
   document.getElementById("pauseButton").onclick = () => {
     paused = !paused;
-    document.getElementById("pauseButton").innerText = paused
-      ? "▶ PLAY"
-      : "II PAUSE";
+    document.getElementById("pauseButton").innerText = paused ? "▶ PLAY" : "II PAUSE";
     if (paused) bgMusic.pause();
     else bgMusic.play().catch((err) => console.log("Music blocked:", err));
   };
 
   document.getElementById("retryButton").addEventListener("click", resetGame);
-  document.getElementById("instructionsButton").onclick = () =>
-    showScreen(instructionsScreen);
-  document.getElementById("instructionsBackButton").onclick = () =>
-    showScreen(homeScreen);
+  document.getElementById("instructionsButton").onclick = () => showScreen(instructionsScreen);
+  document.getElementById("instructionsBackButton").onclick = () => showScreen(homeScreen);
   document.getElementById("backButton").onclick = () => showScreen(homeScreen);
 
   document.getElementById("nextLevelButton").onclick = () => {
-    if (levelCompleteTimer) {
-      clearTimeout(levelCompleteTimer);
-      levelCompleteTimer = null;
-    }
+    if (levelCompleteTimer) { clearTimeout(levelCompleteTimer); levelCompleteTimer = null; }
     level++;
     spawnedBeats = new Set();
     rectangles = [];
@@ -127,36 +126,26 @@ function setup() {
     gameOver = false;
     paused = false;
     bgMusic.currentTime = 0;
-    document.getElementById("message").innerText =
-      "Hit F or J as rectangles reach the bar";
+    document.getElementById("message").innerText = "Hit the keys as rectangles reach the bar";
     showScreen(gameScreen);
     playBackgroundMusic();
   };
 
   document.getElementById("tryAgainButton").onclick = () => {
-    if (levelCompleteTimer) {
-      clearTimeout(levelCompleteTimer);
-      levelCompleteTimer = null;
-    }
+    if (levelCompleteTimer) { clearTimeout(levelCompleteTimer); levelCompleteTimer = null; }
     spawnedBeats = new Set();
     rectangles = [];
+    particles = [];
     gameOver = false;
-    const firstNote = beatmap.find((e) => e.level === level);
-    bgMusic.currentTime = Math.max(
-      0,
-      (firstNote.beat + beatOffset) * beatInterval - travelTime,
-    );
-    document.getElementById("message").innerText =
-      "Hit F or J as rectangles reach the bar";
+    paused = false;
+    bgMusic.currentTime = 0;
+    document.getElementById("message").innerText = "Hit the keys as rectangles reach the bar";
     showScreen(gameScreen);
     playBackgroundMusic();
   };
 
   document.getElementById("levelHomeButton").onclick = () => {
-    if (levelCompleteTimer) {
-      clearTimeout(levelCompleteTimer);
-      levelCompleteTimer = null;
-    }
+    if (levelCompleteTimer) { clearTimeout(levelCompleteTimer); levelCompleteTimer = null; }
     bgMusic.pause();
     bgMusic.currentTime = 0;
     level = 1;
@@ -177,21 +166,16 @@ function resetGame() {
   paused = false;
   rectangles = [];
   particles = [];
-  laneGlow = { F: 0, J: 0 };
+  laneGlow = { D: 0, F: 0, " ": 0, J: 0, K: 0 };
   spawnedBeats = new Set();
   levelCompleteTimer = null;
-
   bgMusic.currentTime = 0;
-
   document.getElementById("retryButton").style.display = "none";
   document.getElementById("hitFeedback").innerText = "";
-  document.getElementById("message").innerText =
-    "Hit F or J as rectangles reach the bar";
+  document.getElementById("message").innerText = "Hit the keys as rectangles reach the bar";
 }
 
 /* ---------- SPAWN NOTES FROM BEATMAP ---------- */
-// Called every frame. Spawns a note when the song clock is leadin beats
-// before its scheduled hit time.
 function spawnScheduledNotes() {
   const songTime = bgMusic.currentTime;
 
@@ -200,23 +184,17 @@ function spawnScheduledNotes() {
     if (entry.level !== level) continue;
     if (spawnedBeats.has(i)) continue;
 
-    const targetTime = (entry.beat + beatOffset) * beatInterval; // when note should hit the bar (seconds)
-    const spawnTime = targetTime - travelTime; // when note should appear (seconds)
+    const targetTime = (entry.beat + beatOffset) * beatInterval;
+    const spawnTime = targetTime - travelTime;
 
     if (songTime >= spawnTime) {
-      const laneX =
-        entry.key === "F"
-          ? width / 4 - rectWidth / 2
-          : (3 * width) / 4 - rectWidth / 2;
-
       rectangles.push({
         key: entry.key,
         targetTime: targetTime,
-        x: laneX,
+        x: getLaneX(entry.key),
         y: -rectHeight,
         hit: false,
       });
-
       spawnedBeats.add(i);
     }
   }
@@ -231,34 +209,36 @@ function draw() {
     spawnScheduledNotes();
   }
 
-  // ---- Draw neon lanes ----
+  // ---- Draw lanes ----
   const topAlpha = 102;
   const bottomAlpha = 255;
   const steps = 60;
+  const lanes = ["D", "F", " ", "J", "K"];
+  const greyLanes = new Set(["F", "J"]); // F and J are grey; rest are black
 
-  for (let i = 0; i < steps; i++) {
-    const alphaValue = lerp(topAlpha, bottomAlpha, i / (steps - 1));
-    const yPos = (height / steps) * i;
-    const h = height / steps;
+  for (let lane of lanes) {
+    const lx = getLaneX(lane);
+    const [r, g, b] = laneColors[lane];
 
-    strokeWeight(4);
+    for (let i = 0; i < steps; i++) {
+      const alphaValue = lerp(topAlpha, bottomAlpha, i / (steps - 1));
+      const yPos = (height / steps) * i;
+      const h = height / steps;
 
-    stroke(0, 255, 255, laneGlow.F);
-    noFill();
-    rect(width / 4 - rectWidth / 2, yPos, rectWidth, h);
+      // Glow outline
+      strokeWeight(4);
+      stroke(r, g, b, laneGlow[lane]);
+      noFill();
+      rect(lx, yPos, rectWidth, h);
 
-    stroke(255, 0, 255, laneGlow.J);
-    noFill();
-    rect((3 * width) / 4 - rectWidth / 2, yPos, rectWidth, h);
+      // Lane fill: grey for F/J, black for D/Space/K
+      noStroke();
+      fill(greyLanes.has(lane) ? color(60, 60, 60, alphaValue) : color(0, 0, 0, alphaValue));
+      rect(lx, yPos, rectWidth, h);
+    }
 
-    noStroke();
-    fill(60, 60, 60, alphaValue);
-    rect(width / 4 - rectWidth / 2, yPos, rectWidth, h);
-    rect((3 * width) / 4 - rectWidth / 2, yPos, rectWidth, h);
+    laneGlow[lane] = max(0, laneGlow[lane] - 5);
   }
-
-  laneGlow.F = max(0, laneGlow.F - 5);
-  laneGlow.J = max(0, laneGlow.J - 5);
 
   // ---- Hit bar ----
   const currentBarY = getBarY(bgMusic.currentTime);
@@ -274,48 +254,35 @@ function draw() {
 
     rectangles.forEach((r) => {
       if (!r.hit) {
-        // Position note based on song time and where the bar currently is.
-        // getBarY(songTime) ensures the note tracks the bar's bobbing position.
         const timeUntilHit = r.targetTime - songTime;
         r.y = getBarY(songTime) - timeUntilHit * pixelsPerSecond;
 
+        const [rc, gc, bc] = laneColors[r.key];
         drawingContext.shadowBlur = 25;
-        drawingContext.shadowColor =
-          r.key === "F" ? color(0, 255, 255) : color(255, 0, 255);
-        fill(r.key === "F" ? color(0, 255, 255) : color(255, 0, 255));
+        drawingContext.shadowColor = color(rc, gc, bc);
+        fill(rc, gc, bc);
         rect(r.x, r.y, rectWidth, rectHeight, 12);
         drawingContext.shadowBlur = 0;
 
-        // Miss: note passed the bar without being hit
         if (r.y > getBarY(songTime) + barHeight + 10) {
           gameOver = true;
-          document.getElementById("message").innerText =
-            "Game Over! You missed a note.";
+          document.getElementById("message").innerText = "Game Over! You missed a note.";
           document.getElementById("retryButton").style.display = "block";
         }
       }
     });
 
-    // Check level complete: all notes for this level are spawned and hit
+    // Check level complete
     const levelNotes = beatmap.filter((e) => e.level === level);
     const allSpawned = levelNotes.every((_, i) => {
-      // find this entry's global index
       const globalIndex = beatmap.indexOf(levelNotes[i]);
       return spawnedBeats.has(globalIndex);
     });
-    const allHit = rectangles
-      .filter((r) => beatmap.findIndex((e, i) => e.level === level) !== -1)
-      .every((r) => r.hit);
 
-    if (
-      allSpawned &&
-      rectangles.filter((r) => !r.hit).length === 0 &&
-      !gameOver
-    ) {
+    if (allSpawned && rectangles.filter((r) => !r.hit).length === 0 && !gameOver) {
       gameOver = true;
-      // Start the 4-beat breather timer if not already started
       if (levelCompleteTimer === null) {
-        const fourBeats = 4 * beatInterval * 1000; // convert to milliseconds
+        const fourBeats = 4 * beatInterval * 1000;
         levelCompleteTimer = setTimeout(() => {
           bgMusic.pause();
           const title = document.getElementById("levelCompleteTitle");
@@ -340,13 +307,11 @@ function draw() {
     fill(red(p.color), green(p.color), blue(p.color), p.alpha);
     noStroke();
     ellipse(p.x, p.y, p.size);
-
     if (!paused) {
       p.x += p.vx;
       p.y += p.vy;
       p.alpha -= 10;
     }
-
     if (p.alpha <= 0) particles.splice(i, 1);
   }
 
@@ -362,10 +327,12 @@ function draw() {
 function keyPressed() {
   if (paused || gameOver) return;
 
-  const pressedKey = key.toUpperCase();
+  // Space bar: p5's key gives " " not "SPACE"
+  const pressedKey = key === " " ? " " : key.toUpperCase();
 
-  if (pressedKey === "F") laneGlow.F = 80;
-  if (pressedKey === "J") laneGlow.J = 80;
+  if (laneGlow.hasOwnProperty(pressedKey)) {
+    laneGlow[pressedKey] = 80;
+  }
 
   synthLow.currentTime = 0;
   synthLow.play().catch((err) => console.log("Sound blocked:", err));
@@ -381,29 +348,26 @@ function keyPressed() {
       ) {
         r.hit = true;
 
-        // Timing accuracy based on how close to the beat the player was
-        const timingError = Math.abs(r.targetTime - songTime); // seconds off
+        const timingError = Math.abs(r.targetTime - songTime);
         let hitType;
-        if (timingError < 0.05) hitType = "Perfect";
+        if (timingError < 0.05)      hitType = "Perfect";
         else if (timingError < 0.12) hitType = "Early";
-        else hitType = "Late";
+        else                         hitType = "Late";
 
         const hitFeedback = document.getElementById("hitFeedback");
         hitFeedback.innerText = hitType;
         hitFeedback.style.color = hitType === "Perfect" ? "#00FFAA" : "yellow";
         hitFeedback.style.opacity = "1";
-        setTimeout(() => {
-          hitFeedback.style.opacity = "0";
-        }, 250);
+        setTimeout(() => { hitFeedback.style.opacity = "0"; }, 250);
 
-        createBurst(
-          r.x,
-          r.y,
-          r.key === "F" ? color(0, 255, 255) : color(255, 0, 255),
-        );
+        const [rc, gc, bc] = laneColors[r.key];
+        createBurst(r.x, r.y, color(rc, gc, bc));
       }
     }
   });
+
+  // Prevent spacebar from scrolling the page
+  if (key === " ") return false;
 }
 
 function createBurst(x, y, noteColor) {
