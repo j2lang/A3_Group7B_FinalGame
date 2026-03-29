@@ -35,6 +35,10 @@ const SCORE_LATE    = 100;
 const SCORE_PERFECT = 200;
 const SCORE_PENALTY = 100;
 
+/* ---------- Level Progress ---------- */
+let levelStartTime = 0;
+let levelEndTime = 0;
+
 function showHitFeedback(text, colorStr) {
   const hitFeedback = document.getElementById("hitFeedback");
   hitFeedback.innerText = text;
@@ -180,6 +184,7 @@ function setup() {
     levelScore = 0;
     totalPossibleScore = 0;
     bgMusic.currentTime = 0;
+    calculateLevelEndTime();
     document.getElementById("message").innerText = "Hit the keys as rectangles reach the bar";
     showScreen(gameScreen);
     playBackgroundMusic();
@@ -195,6 +200,7 @@ function setup() {
     levelScore = 0;
     totalPossibleScore = 0;
     bgMusic.currentTime = 0;
+    calculateLevelEndTime();
     document.getElementById("message").innerText = "Hit the keys as rectangles reach the bar";
     showScreen(gameScreen);
     playBackgroundMusic();
@@ -231,6 +237,7 @@ function resetGame() {
   document.getElementById("retryButton").style.display = "none";
   document.getElementById("hitFeedback").innerText = "";
   document.getElementById("message").innerText = "Hit the keys as rectangles reach the bar";
+  calculateLevelEndTime();
 }
 
 /* ---------- SPAWN NOTES FROM BEATMAP ---------- */
@@ -264,6 +271,26 @@ function spawnScheduledNotes() {
 function draw() {
   background(0);
   noStroke();
+
+  // ---- Progress Bar ----
+const songTime = bgMusic.currentTime;
+let progress = constrain(songTime / levelEndTime, 0, 1);
+
+const barX = 50;
+const barYProgress = 20;
+const barW = width - 100;
+const barH = 12;
+
+// Outline
+noFill();
+stroke(255);
+strokeWeight(2);
+rect(barX, barYProgress, barW, barH);
+
+// Fill
+noStroke();
+fill(255);
+rect(barX, barYProgress, barW * progress, barH);
 
   if (!gameOver && !paused) {
     spawnScheduledNotes();
@@ -437,4 +464,17 @@ function createBurst(x, y, w, noteColor) {
       size: random(4, 8),
     });
   }
+}
+
+/* ---------- PROGRESS BAR IDK ---------- */
+function calculateLevelEndTime() {
+  const levelNotes = beatmap.filter(e => e.level === level);
+  let lastBeat = 0;
+
+  levelNotes.forEach(n => {
+    if (n.beat > lastBeat) lastBeat = n.beat;
+  });
+
+  levelStartTime = 0;
+  levelEndTime = (lastBeat + beatOffset) * beatInterval;
 }
