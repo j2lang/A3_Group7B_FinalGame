@@ -126,8 +126,7 @@ function setup() {
     particles = [];
     gameOver = false;
     paused = false;
-    const firstNote = beatmap.find(e => e.level === level);
-    bgMusic.currentTime = Math.max(0, (firstNote.beat + beatOffset) * beatInterval - travelTime);
+    bgMusic.currentTime = 0;
     document.getElementById("message").innerText =
       "Hit F or J as rectangles reach the bar";
     showScreen(gameScreen);

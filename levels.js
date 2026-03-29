@@ -3,8 +3,8 @@
 
 function generateBeatmap() {
   const map = [];
-  const L2 = 8;  // extra beat offset for level 2 intro pause
-  const L3 = 8;  // extra beat offset for level 3 intro pause
+  const L2 = -82;  // 82 - 82 = 0, same start as level 1
+const L3 = -162; // 162 - 162 = 0, same start as level 1
 
   function F(beat, level)  { map.push({ beat, key: "F", level }); }
   function J(beat, level)  { map.push({ beat, key: "J", level }); }
