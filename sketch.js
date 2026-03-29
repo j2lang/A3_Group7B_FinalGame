@@ -25,6 +25,51 @@ const synthHigh = new Audio("assets/audio/synthHigh.wav");
 const levelCompleteScreen = document.getElementById("levelCompleteScreen");
 let levelCompleteTimer = null;
 
+/* ---------- Scoring ---------- */
+let levelScore = 0;
+let totalPossibleScore = 0;
+
+const SCORE_MISS    = 0;
+const SCORE_EARLY   = 100;
+const SCORE_LATE    = 100;
+const SCORE_PERFECT = 200;
+const SCORE_PENALTY = 100;
+
+function showHitFeedback(text, colorStr) {
+  const hitFeedback = document.getElementById("hitFeedback");
+  hitFeedback.innerText = text;
+  hitFeedback.style.color = colorStr;
+  hitFeedback.style.opacity = "1";
+  setTimeout(() => { hitFeedback.style.opacity = "0"; }, 250);
+}
+
+function getScoreImage(score, possible) {
+  if (possible === 0) return "assets/images/score0.png";
+  const pct = score / possible;
+  if (pct <= 0.10) return "assets/images/score0.png";
+  if (pct <= 0.50) return "assets/images/score1.png";
+  if (pct <= 0.90) return "assets/images/score2.png";
+  return "assets/images/score3.png";
+}
+
+function showLevelComplete() {
+  bgMusic.pause();
+  const title   = document.getElementById("levelCompleteTitle");
+  const nextBtn = document.getElementById("nextLevelButton");
+  const scoreEl = document.getElementById("levelScore");
+  const imgEl   = document.getElementById("scoreImage");
+
+  title.innerText = level < maxLevels ? "LEVEL COMPLETE!" : "YOU WIN! 🎉";
+  nextBtn.style.display = level < maxLevels ? "block" : "none";
+
+  scoreEl.innerText = `Score: ${levelScore} / ${totalPossibleScore}`;
+  imgEl.src = getScoreImage(levelScore, totalPossibleScore);
+  imgEl.style.display = "block";
+
+  showScreen(levelCompleteScreen);
+  levelCompleteTimer = null;
+}
+
 /* ---------- Hit bar ---------- */
 const barBaseY = 550;
 let barBaseYValue;
@@ -47,10 +92,8 @@ const travelTime = leadin * beatInterval;
 let pixelsPerSecond;
 
 /* ---------- Lane layout ---------- */
-// Lane order left to right
 const laneOrder = ["D", "F", " ", "J", "K"];
 
-// Returns the left X edge of a lane based on cumulative widths
 function getLaneX(key) {
   let x = 0;
   for (let lane of laneOrder) {
@@ -59,14 +102,12 @@ function getLaneX(key) {
   }
 }
 
-// Note and glow colours per lane:
-// D/K = purple, F/J = blue, Space = yellow
 const laneColors = {
-  "D": [255, 0, 255],    // original magenta/purple
-  "F": [0, 255, 255],    // original cyan
-  " ": [255, 220, 0],    // yellow
-  "J": [0, 255, 255],    // original cyan
-  "K": [255, 0, 255],    // original magenta/purple
+  "D": [255, 0, 255],
+  "F": [0, 255, 255],
+  " ": [255, 220, 0],
+  "J": [0, 255, 255],
+  "K": [255, 0, 255],
 };
 
 /* ---------- Beatmap ---------- */
@@ -76,14 +117,14 @@ const beatmap = generateBeatmap();
 let spawnedBeats = new Set();
 
 /* ---------- SCREEN NAVIGATION ---------- */
-const homeScreen = document.getElementById("homeScreen");
+const homeScreen         = document.getElementById("homeScreen");
 const instructionsScreen = document.getElementById("instructionsScreen");
-const gameScreen = document.getElementById("gameScreen");
+const gameScreen         = document.getElementById("gameScreen");
 
 function showScreen(screen) {
-  homeScreen.style.display = "none";
-  instructionsScreen.style.display = "none";
-  gameScreen.style.display = "none";
+  homeScreen.style.display          = "none";
+  instructionsScreen.style.display  = "none";
+  gameScreen.style.display          = "none";
   levelCompleteScreen.style.display = "none";
   screen.style.display = "flex";
 }
@@ -123,6 +164,7 @@ function setup() {
     resetGame();
     level = currentLevel;
   });
+
   document.getElementById("instructionsButton").onclick = () => showScreen(instructionsScreen);
   document.getElementById("instructionsBackButton").onclick = () => showScreen(homeScreen);
   document.getElementById("backButton").onclick = () => showScreen(homeScreen);
@@ -135,6 +177,8 @@ function setup() {
     particles = [];
     gameOver = false;
     paused = false;
+    levelScore = 0;
+    totalPossibleScore = 0;
     bgMusic.currentTime = 0;
     document.getElementById("message").innerText = "Hit the keys as rectangles reach the bar";
     showScreen(gameScreen);
@@ -148,6 +192,8 @@ function setup() {
     particles = [];
     gameOver = false;
     paused = false;
+    levelScore = 0;
+    totalPossibleScore = 0;
     bgMusic.currentTime = 0;
     document.getElementById("message").innerText = "Hit the keys as rectangles reach the bar";
     showScreen(gameScreen);
@@ -179,6 +225,8 @@ function resetGame() {
   laneGlow = { D: 0, F: 0, " ": 0, J: 0, K: 0 };
   spawnedBeats = new Set();
   levelCompleteTimer = null;
+  levelScore = 0;
+  totalPossibleScore = 0;
   bgMusic.currentTime = 0;
   document.getElementById("retryButton").style.display = "none";
   document.getElementById("hitFeedback").innerText = "";
@@ -195,7 +243,7 @@ function spawnScheduledNotes() {
     if (spawnedBeats.has(i)) continue;
 
     const targetTime = (entry.beat + beatOffset) * beatInterval;
-    const spawnTime = targetTime - travelTime;
+    const spawnTime  = targetTime - travelTime;
 
     if (songTime >= spawnTime) {
       rectangles.push({
@@ -206,6 +254,7 @@ function spawnScheduledNotes() {
         y: -rectHeight,
         hit: false,
       });
+      totalPossibleScore += SCORE_PERFECT; // every note is worth 200 at best
       spawnedBeats.add(i);
     }
   }
@@ -221,9 +270,9 @@ function draw() {
   }
 
   // ---- Draw lanes ----
-  const topAlpha = 102;
+  const topAlpha    = 102;
   const bottomAlpha = 255;
-  const steps = 60;
+  const steps       = 60;
 
   for (let lane of laneOrder) {
     const lx = getLaneX(lane);
@@ -233,15 +282,13 @@ function draw() {
     for (let i = 0; i < steps; i++) {
       const alphaValue = lerp(topAlpha, bottomAlpha, i / (steps - 1));
       const yPos = (height / steps) * i;
-      const h = height / steps;
+      const h    = height / steps;
 
-      // Glow outline
       strokeWeight(4);
       stroke(r, g, b, laneGlow[lane]);
       noFill();
       rect(lx, yPos, lw, h);
 
-      // Grey gradient fills
       noStroke();
       const isDark = lane === "D" || lane === " " || lane === "K";
       fill(isDark ? color(35, 35, 35, alphaValue) : color(60, 60, 60, alphaValue));
@@ -253,7 +300,7 @@ function draw() {
 
   // ---- Hit bar ----
   const currentBarY = getBarY(bgMusic.currentTime);
-  drawingContext.shadowBlur = 25;
+  drawingContext.shadowBlur  = 25;
   drawingContext.shadowColor = color(255);
   fill(255, 200);
   rect(0, currentBarY, width, barHeight);
@@ -269,16 +316,17 @@ function draw() {
         r.y = getBarY(songTime) - timeUntilHit * pixelsPerSecond;
 
         const [rc, gc, bc] = laneColors[r.key];
-        drawingContext.shadowBlur = 25;
+        drawingContext.shadowBlur  = 25;
         drawingContext.shadowColor = color(rc, gc, bc);
         fill(rc, gc, bc);
         rect(r.x, r.y, r.w, rectHeight, 12);
         drawingContext.shadowBlur = 0;
 
+        // Missed note: mark hit, score 0, show "Miss", enable penalties
         if (r.y > getBarY(songTime) + barHeight + 10) {
-          gameOver = true;
-          document.getElementById("message").innerText = "Game Over! You missed a note.";
-          document.getElementById("retryButton").style.display = "block";
+          r.hit = true;
+          levelScore += SCORE_MISS;
+          showHitFeedback("Miss", "red");
         }
       }
     });
@@ -294,20 +342,7 @@ function draw() {
       gameOver = true;
       if (levelCompleteTimer === null) {
         const fourBeats = 4 * beatInterval * 1000;
-        levelCompleteTimer = setTimeout(() => {
-          bgMusic.pause();
-          const title = document.getElementById("levelCompleteTitle");
-          const nextBtn = document.getElementById("nextLevelButton");
-          if (level < maxLevels) {
-            title.innerText = "LEVEL COMPLETE!";
-            nextBtn.style.display = "block";
-          } else {
-            title.innerText = "YOU WIN! 🎉";
-            nextBtn.style.display = "none";
-          }
-          showScreen(levelCompleteScreen);
-          levelCompleteTimer = null;
-        }, fourBeats);
+        levelCompleteTimer = setTimeout(showLevelComplete, fourBeats);
       }
     }
   }
@@ -338,7 +373,6 @@ function draw() {
 function keyPressed() {
   if (paused || gameOver) return;
 
-  // Space bar: p5's key gives " " not "SPACE"
   const pressedKey = key === " " ? " " : key.toUpperCase();
 
   if (laneGlow.hasOwnProperty(pressedKey)) {
@@ -348,8 +382,11 @@ function keyPressed() {
   synthLow.currentTime = 0;
   synthLow.play().catch((err) => console.log("Sound blocked:", err));
 
-  const songTime = bgMusic.currentTime;
+  const songTime    = bgMusic.currentTime;
   const currentBarY = getBarY(songTime);
+
+  // Check if this keypress hit any rectangle
+  let hitSomething = false;
 
   rectangles.forEach((r) => {
     if (!r.hit && r.key === pressedKey) {
@@ -358,18 +395,20 @@ function keyPressed() {
         r.y <= currentBarY + barHeight + hitBuffer
       ) {
         r.hit = true;
+        hitSomething = true;
 
         const timingError = Math.abs(r.targetTime - songTime);
-        let hitType;
-        if (timingError < 0.05)      hitType = "Perfect";
-        else if (timingError < 0.12) hitType = "Early";
-        else                         hitType = "Late";
+        let hitType, points;
+        if (timingError < 0.05) {
+          hitType = "Perfect"; points = SCORE_PERFECT;
+        } else if (timingError < 0.12) {
+          hitType = "Early";   points = SCORE_EARLY;
+        } else {
+          hitType = "Late";    points = SCORE_LATE;
+        }
 
-        const hitFeedback = document.getElementById("hitFeedback");
-        hitFeedback.innerText = hitType;
-        hitFeedback.style.color = hitType === "Perfect" ? "#00FFAA" : "yellow";
-        hitFeedback.style.opacity = "1";
-        setTimeout(() => { hitFeedback.style.opacity = "0"; }, 250);
+        levelScore += points;
+        showHitFeedback(hitType, hitType === "Perfect" ? "#00FFAA" : "yellow");
 
         const [rc, gc, bc] = laneColors[r.key];
         createBurst(r.x, r.y, r.w, color(rc, gc, bc));
@@ -377,7 +416,12 @@ function keyPressed() {
     }
   });
 
-  // Prevent spacebar from scrolling the page
+  // Empty hit penalty
+  if (!hitSomething && laneGlow.hasOwnProperty(pressedKey)) {
+    levelScore = max(0, levelScore - SCORE_PENALTY);
+    showHitFeedback("-100", "white");
+  }
+
   if (key === " ") return false;
 }
 
